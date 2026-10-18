@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>CS: FACE STRIKE — 头像靶场</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0f12'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e0a13c' stroke-width='2'/%3E%3Cpath d='M16 3v7M16 22v7M3 16h7M22 16h7' stroke='%233ef07a' stroke-width='2'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ===================== HUD ===================== -->
+  <div id="hud" class="hud hidden">
+    <div class="hud-top">
+      <div class="hud-block wave-block">
+        <div class="hud-label">WAVE</div>
+        <div class="hud-wave" id="waveNum">1</div>
+      </div>
+      <div class="hud-score-wrap">
+        <div class="hud-score" id="scoreVal">0</div>
+        <div class="hud-score-sub">
+          <span><b id="targetsLeft">0</b> 目标剩余</span>
+          <span class="dot">·</span>
+          <span><b id="accVal">0%</b> 命中率</span>
+        </div>
+      </div>
+      <div class="hud-block timer-block">
+        <div class="hud-label">NEXT WAVE</div>
+        <div class="hud-timer" id="waveTimer">--</div>
+      </div>
+    </div>
+
+    <div class="killfeed" id="killfeed"></div>
+
+    <div class="crosshair" id="crosshair" data-style="classic">
+      <i class="ch-line ch-top"></i>
+      <i class="ch-line ch-bottom"></i>
+      <i class="ch-line ch-left"></i>
+      <i class="ch-line ch-right"></i>
+      <i class="ch-dot"></i>
+    </div>
+    <div class="hitmarker" id="hitmarker"><i></i><i></i><i></i><i></i></div>
+
+    <div class="dmg-numbers" id="dmgNumbers"></div>
+
+    <div class="scope" id="scope">
+      <div class="scope-ring"></div>
+      <div class="scope-h"></div>
+      <div class="scope-v"></div>
+      <div class="scope-text">AWP · 8x</div>
+    </div>
+
+    <div class="hud-bl">
+      <div class="vital">
+        <div class="vital-icon health-icon">✚</div>
+        <div class="vital-num" id="hpVal">100</div>
+      </div>
+      <div class="vital armor">
+        <div class="vital-icon armor-icon">◈</div>
+        <div class="vital-num small" id="apVal">100</div>
+      </div>
+      <div class="hp-bar"><i id="hpFill"></i></div>
+    </div>
+
+    <div class="hud-br">
+      <div class="weapon-tag" id="weaponTag">RIFLE</div>
+      <div class="ammo">
+        <span id="ammoMag">30</span><span class="ammo-sep">/</span><span id="ammoRes">90</span>
+      </div>
+      <div class="weapon-name" id="weaponName">AK-47</div>
+      <div class="reload-bar" id="reloadBar"><i id="reloadFill"></i><span>RELOADING</span></div>
+      <div class="ammo-pips" id="ammoPips"></div>
+    </div>
+
+    <div class="hud-hint" id="hudHint">
+      <span><b>ESC</b> 设置</span><span><b>R</b> 换弹</span><span><b>1-6</b> 换枪</span><span><b>空格</b> 跳跃</span>
+    </div>
+
+    <div class="lock-tip" id="lockTip">点击画面锁定鼠标 · 无法锁定时可直接移动鼠标瞄准</div>
+    <div class="fps" id="fpsBox">60 FPS</div>
+    <div class="flash" id="flash"></div>
+    <div class="vignette" id="vignette"></div>
+    <div class="announce" id="announce"></div>
+  </div>
+
+  <!-- ===================== MAIN MENU ===================== -->
+  <div class="screen menu-screen" id="menu">
+    <div class="menu-grain"></div>
+    <header class="menu-top">
+      <div class="tag-line"><i></i> TACTICAL AIM SIMULATION <i></i></div>
+      <div class="menu-meta">8 OPERATORS · 6 WEAPONS · ENDLESS WAVES</div>
+    </header>
+
+    <div class="menu-body">
+      <div class="logo-wrap">
+        <div class="logo-kicker">COUNTER-STRIKE INSPIRED</div>
+        <h1 class="logo">
+          <span class="cs">CS</span><span class="colon">:</span><span class="face">FACE STRIKE</span>
+        </h1>
+        <div class="logo-rule"><i></i></div>
+        <p class="logo-sub">头像靶场 — 把八张脸打成筛子</p>
+      </div>
+
+      <nav class="menu-actions">
+        <button class="cs-btn primary" id="btnStart"><span class="bi">01</span><span class="bt">开始训练</span><span class="arrow">▸</span></button>
+        <button class="cs-btn" id="btnSettingsMenu"><span class="bi">02</span><span class="bt">设置</span><span class="arrow">▸</span></button>
+        <button class="cs-btn" id="btnHelp"><span class="bi">03</span><span class="bt">操作说明</span><span class="arrow">▸</span></button>
+      </nav>
+
+      <div class="roster">
+        <div class="roster-title">TARGET ROSTER · <b>8 OPERATORS</b></div>
+        <div class="roster-list" id="rosterList"></div>
+      </div>
+
+      <div class="help-card hidden" id="helpCard">
+        <div class="help-head">操作说明 <span>CONTROLS</span></div>
+        <div class="help-grid">
+          <div><kbd>W A S D</kbd><span>移动</span></div>
+          <div><kbd>鼠标</kbd><span>转向瞄准</span></div>
+          <div><kbd>左键</kbd><span>射击</span></div>
+          <div><kbd>右键</kbd><span>AWP 开镜</span></div>
+          <div><kbd>空格</kbd><span>跳跃</span></div>
+          <div><kbd>Shift</kbd><span>静步 / 稳枪</span></div>
+          <div><kbd>R</kbd><span>换弹</span></div>
+          <div><kbd>1 - 6</kbd><span>切换枪械</span></div>
+          <div><kbd>Esc</kbd><span>暂停 / 设置</span></div>
+          <div><kbd>滚轮</kbd><span>快速换枪</span></div>
+        </div>
+        <p class="help-tip">命中目标上半部（脸部额头区域）判定为 <b>爆头</b>，伤害翻倍。红色标记的球会向你冲过来，别让它贴脸。</p>
+      </div>
+    </div>
+
+    <footer class="menu-foot">
+      <span>© 2026 FACE STRIKE — FAN PROJECT</span>
+      <span class="foot-mid">建议使用桌面端 Chrome / Edge · 点击画面锁定鼠标</span>
+      <span id="menuVersion">v1.0.0</span>
+    </footer>
+  </div>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <div class="screen panel-screen hidden" id="settings">
+    <div class="panel">
+      <header class="panel-head">
+        <div>
+          <div class="panel-kicker">CONFIGURATION</div>
+          <h2>设置</h2>
+        </div>
+        <button class="close-btn" id="btnSettingsClose" aria-label="关闭">✕</button>
+      </header>
+
+      <div class="panel-tabs">
+        <button class="ptab active" data-tab="game">玩法</button>
+        <button class="ptab" data-tab="weapons">武器库</button>
+        <button class="ptab" data-tab="hud">界面 & 准星</button>
+      </div>
+
+      <div class="panel-body">
+        <!-- GAME TAB -->
+        <section class="tab-page active" data-page="game">
+          <div class="setting-row">
+            <div class="setting-label"><b>小球大小</b><span>BALL SIZE</span></div>
+            <div class="setting-control">
+              <input type="range" id="setBallSize" min="0.2" max="1" step="0.02" value="0.45" />
+              <output id="outBallSize">0.45</output>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label"><b>鼠标灵敏度</b><span>CS2 SENSITIVITY</span></div>
+            <div class="setting-control">
+              <input type="range" id="setSens" min="0.1" max="5" step="0.01" value="1" />
+              <output id="outSens">1.00</output>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label"><b>视野范围</b><span>FOV</span></div>
+            <div class="setting-control">
+              <input type="range" id="setFov" min="70" max="110" step="1" value="90" />
+              <output id="outFov">90°</output>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-label"><b>音量</b><span>VOLUME</span></div>
+            <div class="setting-control">
+              <input type="range" id="setVolume" min="0" max="1" step="0.01" value="0.55" />
+              <output id="outVolume">55%</output>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <div class="setting-label wide">
+              <b>小球贴图样式</b><span>SPHERE TEXTURE STYLE</span>
+            </div>
+            <div class="chip-row" id="textureStyles">
+              <button class="chip active" data-style="random">随机头像</button>
+              <button class="chip" data-style="fixed">统一头像</button>
+              <button class="chip" data-style="gray">黑白照片</button>
+              <button class="chip" data-style="ring">靶环涂装</button>
+            </div>
+            <div class="face-picker" id="facePicker">
+              <div class="face-picker-hint">选择固定使用的头像：</div>
+              <div class="face-grid" id="faceGrid"></div>
+            </div>
+          </div>
+
+          <div class="setting-row compact">
+            <div class="setting-label"><b>显示 FPS</b><span>PERFORMANCE</span></div>
+            <div class="setting-control">
+              <label class="switch"><input type="checkbox" id="setFps" /><i></i></label>
+            </div>
+          </div>
+          <div class="setting-row compact">
+            <div class="setting-label"><b>镜头晃动</b><span>VIEW PUNCH</span></div>
+            <div class="setting-control">
+              <label class="switch"><input type="checkbox" id="setPunch" checked /><i></i></label>
+            </div>
+          </div>
+        </section>
+
+        <!-- WEAPONS TAB -->
+        <section class="tab-page" data-page="weapons">
+          <div class="weapon-grid" id="weaponGrid"></div>
+          <p class="panel-note">游戏中按 <b>1 - 6</b> 或滚轮快速切换枪械。每把枪的伤害、射速、后坐力、移动速度与音效均不相同。</p>
+        </section>
+
+        <!-- HUD TAB -->
+        <section class="tab-page" data-page="hud">
+          <div class="setting-block">
+            <div class="setting-label wide"><b>准星样式</b><span>CROSSHAIR STYLE</span></div>
+            <div class="chip-row" id="crossStyles">
+              <button class="chip active" data-ch="classic">经典四线</button>
+              <button class="chip" data-ch="dot">单点</button>
+              <button class="chip" data-ch="cross">细十字</button>
+            </div>
+          </div>
+          <div class="setting-block">
+            <div class="setting-label wide"><b>准星颜色</b><span>CROSSHAIR COLOR</span></div>
+            <div class="color-row" id="crossColors">
+              <button class="swatch active" data-color="#3ef07a" style="--c:#3ef07a"></button>
+              <button class="swatch" data-color="#53e0ff" style="--c:#53e0ff"></button>
+              <button class="swatch" data-color="#ffffff" style="--c:#ffffff"></button>
+              <button class="swatch" data-color="#ffd84d" style="--c:#ffd84d"></button>
+              <button class="swatch" data-color="#ff5c5c" style="--c:#ff5c5c"></button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><b>准星大小</b><span>CROSSHAIR SIZE</span></div>
+            <div class="setting-control">
+              <input type="range" id="setCrossSize" min="0.6" max="1.8" step="0.05" value="1" />
+              <output id="outCrossSize">1.00</output>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><b>HUD 透明度</b><span>HUD OPACITY</span></div>
+            <div class="setting-control">
+              <input type="range" id="setHudOpacity" min="0.45" max="1" step="0.01" value="1" />
+              <output id="outHudOpacity">100%</output>
+            </div>
+          </div>
+          <div class="preview-box">
+            <div class="preview-label">准星预览</div>
+            <div class="preview-stage" id="crossPreview">
+              <div class="crosshair" id="crosshairPreview" data-style="classic">
+                <i class="ch-line ch-top"></i><i class="ch-line ch-bottom"></i>
+                <i class="ch-line ch-left"></i><i class="ch-line ch-right"></i><i class="ch-dot"></i>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="panel-foot">
+        <button class="ghost-btn" id="btnResetSettings">恢复默认</button>
+        <button class="cs-btn small primary" id="btnApplySettings"><span class="bt">完成</span></button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ===================== PAUSE ===================== -->
+  <div class="screen panel-screen hidden" id="pause">
+    <div class="panel narrow">
+      <header class="panel-head">
+        <div>
+          <div class="panel-kicker">MISSION PAUSED</div>
+          <h2>已暂停</h2>
+        </div>
+        <button class="close-btn" id="btnPauseResumeTop">✕</button>
+      </header>
+      <div class="pause-stats">
+        <div><span>得分</span><b id="pauseScore">0</b></div>
+        <div><span>波次</span><b id="pauseWave">1</b></div>
+        <div><span>击杀</span><b id="pauseKills">0</b></div>
+        <div><span>命中率</span><b id="pauseAcc">0%</b></div>
+      </div>
+      <div class="pause-actions">
+        <button class="cs-btn primary" id="btnResume"><span class="bt">继续训练</span><span class="arrow">▸</span></button>
+        <button class="cs-btn" id="btnSettingsPause"><span class="bt">设置</span><span class="arrow">▸</span></button>
+        <button class="cs-btn" id="btnRestart"><span class="bt">重新开始</span><span class="arrow">▸</span></button>
+        <button class="cs-btn ghost" id="btnQuit"><span class="bt">返回主菜单</span><span class="arrow">▸</span></button>
+      </div>
+      <div class="pause-hint">按 <b>ESC</b> 继续游戏</div>
+    </div>
+  </div>
+
+  <!-- ===================== GAME OVER ===================== -->
+  <div class="screen panel-screen hidden" id="gameover">
+    <div class="panel narrow over-panel">
+      <div class="over-kicker">MISSION FAILED</div>
+      <h2 class="over-title">训练终止</h2>
+      <p class="over-sub">你被头像球撞死了。这不体面。</p>
+      <div class="over-score">
+        <div class="over-score-num" id="overScore">0</div>
+        <div class="over-score-label">FINAL SCORE</div>
+      </div>
+      <div class="over-stats">
+        <div><span>存活波次</span><b id="overWave">1</b></div>
+        <div><span>击杀目标</span><b id="overKills">0</b></div>
+        <div><span>命中率</span><b id="overAcc">0%</b></div>
+        <div><span>爆头数</span><b id="overHs">0</b></div>
+      </div>
+      <div class="over-actions">
+        <button class="cs-btn primary" id="btnAgain"><span class="bt">再来一局</span><span class="arrow">▸</span></button>
+        <button class="cs-btn ghost" id="btnOverMenu"><span class="bt">返回主菜单</span><span class="arrow">▸</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rotate-warning" id="rotateWarning">请横屏或使用桌面端浏览器以获得完整体验</div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
